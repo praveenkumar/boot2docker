@@ -1,23 +1,30 @@
-FROM debian:jessie
+FROM fedora:24
 
-RUN apt-get update && apt-get -y install  unzip \
-                        xz-utils \
+RUN dnf -y update && dnf -y install  unzip \
+                        xz \
                         curl \
                         bc \
                         git \
-                        build-essential \
+                        gcc \
+                        gcc-c++ \
+                        kernel-devel \
                         golang \
                         cpio \
-                        gcc libc6 libc6-dev \
+                        glibc-devel \
                         kmod \
                         squashfs-tools \
                         genisoimage \
                         xorriso \
                         syslinux \
-                        isolinux \
                         automake \
-                        pkg-config \
-                        p7zip-full
+                        pkgconfig \
+                        p7zip \
+                        p7zip-plugins \
+                        tar \
+                        patch \
+                        make \
+                        glibc-static \
+                        bzip2
 
 # https://www.kernel.org/
 ENV KERNEL_VERSION  4.4.18
@@ -181,20 +188,20 @@ RUN set -x && \
 #    chroot "$ROOTFS" VBoxService --version
 
 # Install build dependencies for VMware Tools
-RUN apt-get update && apt-get install -y \
+RUN dnf update -y && dnf install -y \
         autoconf \
-        libdumbnet-dev \
-        libdumbnet1 \
-        libfuse-dev \
-        libfuse2 \
-        libglib2.0-0 \
-        libglib2.0-dev \
-        libmspack-dev \
-        libssl-dev \
-        libtirpc-dev \
-        libtirpc1 \
+        libdnet-devel \
+        libdnet \
+        fuse-devel \
+        fuse-libs \
+        glib2 \
+        glib2-devel \
+        libmspack-devel \
+        openssl-devel \
+        libtirpc-devel \
+        libtirpc \
         libtool \
-    && rm -rf /var/lib/apt/lists/*
+    && dnf clean all
 
 # Build VMware Tools
 ENV OVT_VERSION 10.0.0-3000743
@@ -308,25 +315,25 @@ RUN mv $ROOTFS/usr/local/etc/motd $ROOTFS/etc/motd
 
 # Make sure we have the correct bootsync
 RUN mv $ROOTFS/boot*.sh $ROOTFS/opt/ && \
-	chmod +x $ROOTFS/opt/*.sh
+    chmod +x $ROOTFS/opt/*.sh
 
 # Make sure we have the correct shutdown
 RUN mv $ROOTFS/shutdown.sh $ROOTFS/opt/shutdown.sh && \
-	chmod +x $ROOTFS/opt/shutdown.sh
+    chmod +x $ROOTFS/opt/shutdown.sh
 
 # Add serial console
 RUN echo "#!/bin/sh" > $ROOTFS/usr/local/bin/autologin && \
-	echo "/bin/login -f docker" >> $ROOTFS/usr/local/bin/autologin && \
-	chmod 755 $ROOTFS/usr/local/bin/autologin && \
-	echo 'ttyS0:2345:respawn:/sbin/getty -l /usr/local/bin/autologin 9600 ttyS0 vt100' >> $ROOTFS/etc/inittab && \
-	echo 'ttyS1:2345:respawn:/sbin/getty -l /usr/local/bin/autologin 9600 ttyS1 vt100' >> $ROOTFS/etc/inittab
+    echo "/bin/login -f docker" >> $ROOTFS/usr/local/bin/autologin && \
+    chmod 755 $ROOTFS/usr/local/bin/autologin && \
+    echo 'ttyS0:2345:respawn:/sbin/getty -l /usr/local/bin/autologin 9600 ttyS0 vt100' >> $ROOTFS/etc/inittab && \
+    echo 'ttyS1:2345:respawn:/sbin/getty -l /usr/local/bin/autologin 9600 ttyS1 vt100' >> $ROOTFS/etc/inittab
 
 # fix "su -"
 RUN echo root > $ROOTFS/etc/sysconfig/superuser
 
 # add some timezone files so we're explicit about being UTC
 RUN echo 'UTC' > $ROOTFS/etc/timezone \
-	&& cp -L /usr/share/zoneinfo/UTC $ROOTFS/etc/localtime
+    && cp -L /usr/share/zoneinfo/UTC $ROOTFS/etc/localtime
 
 # make sure the "docker" group exists already
 RUN chroot "$ROOTFS" addgroup -S docker
@@ -334,8 +341,8 @@ RUN chroot "$ROOTFS" addgroup -S docker
 # set up subuid/subgid so that "--userns-remap=default" works out-of-the-box
 # (see also rootfs/rootfs/etc/sub{uid,gid})
 RUN set -x \
-	&& chroot "$ROOTFS" addgroup -S dockremap \
-	&& chroot "$ROOTFS" adduser -S -G dockremap dockremap
+    && chroot "$ROOTFS" addgroup -S dockremap \
+    && chroot "$ROOTFS" adduser -S -G dockremap dockremap
 
 # Get the git versioning info
 COPY .git /git/.git
